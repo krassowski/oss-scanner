@@ -1,0 +1,74 @@
+# Builds projects/jupyterlab the way the OSS Scanner does (tools/check), then runs tests in the finished image with no
+# network. This file is for a test branch in the fork only: the enrollment pull request must not include it.
+name: Check jupyterlab image
+
+on:
+  push:
+    branches: [check-jupyterlab-image]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # An explicit bash adds -o pipefail, so a failure before `| tee` fails the step.
+    shell: bash
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install PyYAML
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install pyyaml
+          mkdir -p "$RUNNER_TEMP/out"
+
+      - name: Build the image as the scanner does
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" tools/validate.py
+          "$RUNNER_TEMP/venv/bin/python" tools/check --no-shell jupyterlab 2>&1 | tee "$RUNNER_TEMP/out/build.log"
+          df -h /
+
+      # The same container as the shell that tools/check opens: no network, 2 CPUs and 8 GB. Only /out is mounted, to
+      # bring the logs back.
+      - name: Run tests in the image with no network
+        run: |
+          cp .github/check-jupyterlab/offline-tests.sh "$RUNNER_TEMP/out/"
+          docker run --rm --network none --cpus 2 --memory 8g --cap-add SYS_PTRACE -w /src \
+            -v "$RUNNER_TEMP/out:/out" oss-scanner-check/built:jupyterlab bash /out/offline-tests.sh
+
+      - name: Write the summary
+        if: always()
+        run: |
+          out="$RUNNER_TEMP/out"
+          {
+            echo "## projects/jupyterlab image check"
+            echo
+            echo "- Enrollment files: \`$GITHUB_SHA\` of $GITHUB_REPOSITORY"
+            echo "- jupyterlab: $(grep -m1 '^HEAD is' "$out/build.log" 2>/dev/null || echo 'not cloned')"
+            echo "- Build: $(grep -qx 'jupyterlab builds.' "$out/build.log" 2>/dev/null && echo pass || echo FAIL)"
+            if docker image inspect oss-scanner-check/built:jupyterlab > /dev/null 2>&1; then
+              echo "- Image: $(docker image inspect oss-scanner-check/built:jupyterlab --format '{{.Id}}'), $(docker image ls oss-scanner-check/built:jupyterlab --format '{{.Size}}')"
+            fi
+            echo
+            cat "$out/results.md" 2>/dev/null || echo "The offline tests did not run."
+          } | tee "$out/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: jupyterlab-image-check
+          path: ${{ runner.temp }}/out

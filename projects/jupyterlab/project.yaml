@@ -1,0 +1,9 @@
+# JupyterLab: the web-based interactive development environment for notebooks, code and data.
+repo: https://github.com/jupyterlab/jupyterlab#main
+
+# Jupyter's address for reporting security issues.
+primary_contact: security@jupyter.org
+
+homepage: https://jupyter.org
+
+disabled: false
