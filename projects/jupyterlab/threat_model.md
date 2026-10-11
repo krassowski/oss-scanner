@@ -44,9 +44,9 @@ Least: build and release tooling (`buildutils/`, `dev_mode/`, `scripts/`, `jupyt
 
 The repository is at `/src`, built in dev mode. JupyterLab is installed from `/src` in editable mode, in a virtual environment on PATH.
 
-- Browser tests: start a server with `cd /src/galata && jupyter lab --config ./jupyter_server_test_config.py --allow-root &`, then run `jlpm playwright test --project jupyterlab test/jupyterlab/notebook-trust.test.ts`. This server has no token and no XSRF check. For a finding about authentication, use `jupyter lab --dev-mode --allow-root --no-browser`. A new galata test is the best way to show that opening or clicking something runs a script.
+- Browser tests: start a server with `cd /src/galata && jupyter lab --config ./jupyter_server_test_config.py --allow-root &`, then run `jlpm playwright test test/jupyterlab/notebook-trust.test.ts --project=jupyterlab`. This server has no token and no XSRF check. For a finding about authentication, use `jupyter lab --dev-mode --allow-root --no-browser`. A new galata test is the best way to show that opening or clicking something runs a script.
 - Unit tests: `cd /src/packages/<name> && jlpm build:test && jlpm jest -i test/<file>.spec.ts`. The sanitizer cases are in `packages/apputils/test/sanitizer.spec.ts`.
-- Python tests: `cd /src && python -m pytest jupyterlab/tests`.
+- Python tests: `cd /src && python -m pytest jupyterlab/tests`. Ten tests in `test_build_api.py` and `test_jupyterlab.py` run `jupyter lab build` or install npm packages, and fail without a network.
 
 ## How you rate severity
 

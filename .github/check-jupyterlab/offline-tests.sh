@@ -54,20 +54,31 @@ server_starts() {
 
 # Notebook trust, and the sanitizer applied to pager HTML, in headless Chromium.
 browser_trust_tests() {
-  cd galata && timeout -k 10 1200 jlpm playwright test --project jupyterlab test/jupyterlab/notebook-trust.test.ts \
+  cd galata && timeout -k 10 1200 jlpm playwright test test/jupyterlab/notebook-trust.test.ts --project=jupyterlab \
     --reporter=list --workers=1
 }
 
-# The Python tests, to find the ones that need a network. CI runs `jupyter lab build` first, which this image skips.
+# The Python tests. The deselected ones run `jupyter lab build` or install npm packages, which needs the network.
 python_tests() {
-  timeout -k 30 900 python -m pytest -q -n 2 --dist loadgroup --timeout 300 -p no:cacheprovider jupyterlab/tests
+  local t=jupyterlab/tests
+  timeout -k 30 900 python -m pytest -q -n 2 --dist loadgroup --timeout 300 -p no:cacheprovider "$t" \
+    --deselect "$t/test_build_api.py::TestBuildAPI::test_build" \
+    --deselect "$t/test_build_api.py::TestBuildAPI::test_clear" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_build" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_build_check" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_build_custom" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_build_custom_minimal_core_config" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_build_splice_packages" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_install_and_uninstall_pinned" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_install_and_uninstall_pinned_folder" \
+    --deselect "$t/test_jupyterlab.py::TestExtension::test_uninstall_core_extension"
 }
 
 run_check tools-on-path required tools_on_path
 run_check sanitizer-unit-tests required sanitizer_unit_tests
 run_check server-starts required server_starts
 run_check browser-trust-tests required browser_trust_tests
-run_check python-tests optional python_tests
+run_check python-tests required python_tests
 
 if [[ -d galata/test-results ]]; then
   cp -r galata/test-results /out/galata-test-results
