@@ -17,11 +17,14 @@ RUN rm -f /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY . /src
 WORKDIR /src
 
-# The editable install runs the package's build hook, which runs `jlpm install` and `jlpm build` (dev_mode). This is
-# most of the build time.
+# The Python package and its test dependencies. SKIP_JUPYTER_BUILDER skips the build hook, which would hide the
+# JavaScript build output inside pip's metadata step; the next step runs that build with its output in the log.
 RUN mkdir -p ~/.jupyter \
     && pip install --upgrade pip \
-    && pip install -e ".[dev,test]"
+    && SKIP_JUPYTER_BUILDER=1 pip install -e ".[dev,test]"
+
+# The JavaScript packages and the dev mode application in dev_mode/static. This is most of the build time.
+RUN jlpm install && jlpm build && test -s dev_mode/static/index.html
 
 # Galata (the Playwright test helpers) and the browser it uses, fetched now because the scan has no network.
 RUN cd galata && jlpm build && jlpm playwright install --with-deps --only-shell chromium

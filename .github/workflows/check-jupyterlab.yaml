@@ -44,6 +44,7 @@ jobs:
       # The same container as the shell that tools/check opens: no network, 2 CPUs and 8 GB. Only /out is mounted, to
       # bring the logs back.
       - name: Run tests in the image with no network
+        timeout-minutes: 60
         run: |
           cp .github/check-jupyterlab/offline-tests.sh "$RUNNER_TEMP/out/"
           docker run --rm --network none --cpus 2 --memory 8g --cap-add SYS_PTRACE -w /src \
