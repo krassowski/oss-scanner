@@ -8,13 +8,14 @@ echo "| --- | --- |" >> /out/results.md
 
 # Runs one check, prints its log in a collapsed group of the job log, and records the result.
 # With `optional`, a failure is recorded but does not fail the job.
-# The output goes to a file, not through a pipe: a process that a check leaves running (a server, a test worker)
-# would keep a pipe open and the check would never end.
+# Each check runs in a subshell, so that its `cd` does not change the directory of the checks after it. The output goes
+# to a file, not through a pipe: a process that a check leaves running (a server, a test worker) would keep a pipe open
+# and the check would never end.
 run_check() {
   local name=$1 kind=$2
   shift 2
   local start=$SECONDS
-  if "$@" > "/out/$name.log" 2>&1 < /dev/null; then
+  if ("$@") > "/out/$name.log" 2>&1 < /dev/null; then
     result=pass
   elif [[ $kind == optional ]]; then
     result="fail (not required)"
